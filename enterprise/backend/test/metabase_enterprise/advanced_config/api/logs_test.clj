@@ -48,7 +48,9 @@
       (testing "require admins"
         (premium-features.test/with-premium-features #{:audit-app}
           (is (= "You don't have permissions to do that."
-                 (mt/user-http-request :rasta :get 403 "ee/logs/query_execution/2023-02")))))
+                 (mt/user-http-request :rasta :get 403 "ee/logs/query_execution/2023-02")))
+          (is (= ""
+                 (mt/user-http-request :crowberto :get 200 "ee/logs/query_execution/2023-02")))))
       (testing "only works when `:audit-app` feature is available."
         (premium-features.test/with-premium-features #{}
           (is (= "Audit app is a paid feature not currently available to your instance. Please upgrade to use it. Learn more at metabase.com/upgrade/"
