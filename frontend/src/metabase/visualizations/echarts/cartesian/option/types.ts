@@ -8,7 +8,10 @@ export interface Padding {
 export interface TicksDimensions {
   yTicksWidthLeft: number;
   yTicksWidthRight: number;
-  xTicksHeight: number;
+
+  yAxisNameGapLeft: number;
+  yAxisNameGapRight: number;
+  xAxisNameGap: number;
 }
 
 export interface ChartMeasurements {

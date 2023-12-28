@@ -33,6 +33,7 @@ import type {
   EChartsSeriesBrushEndEvent,
   EChartsSeriesMouseEvent,
 } from "metabase/visualizations/echarts/types";
+import { useBrowserRenderingContext } from "metabase/visualizations/hooks/use-browser-rendering-context";
 
 export function CartesianChart({
   rawSeries,
@@ -70,15 +71,7 @@ export function CartesianChart({
   const title = settings["card.title"] || card.name;
   const description = settings["card.description"];
 
-  const renderingContext: RenderingContext = useMemo(
-    () => ({
-      getColor: color,
-      formatValue: (value, options) => String(formatValue(value, options)),
-      measureText: measureTextWidth,
-      fontFamily: fontFamily,
-    }),
-    [fontFamily],
-  );
+  const renderingContext = useBrowserRenderingContext(fontFamily);
 
   const chartModel = useMemo(
     () => getCartesianChartModel(seriesToRender, settings, renderingContext),

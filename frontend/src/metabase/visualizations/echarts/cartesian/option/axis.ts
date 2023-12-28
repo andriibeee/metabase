@@ -1,26 +1,20 @@
 import type { AxisBaseOptionCommon } from "echarts/types/src/coord/axisCommonTypes";
 import type { CartesianAxisOption } from "echarts/types/src/coord/cartesian/AxisModel";
+import type { RenderingContext } from "metabase/visualizations/types";
 import type {
-  ComputedVisualizationSettings,
-  RenderingContext,
-} from "metabase/visualizations/types";
-import type {
-  AxisFormatter,
   CartesianChartModel,
   Extent,
   YAxisModel,
+  XAxisModel,
 } from "metabase/visualizations/echarts/cartesian/model/types";
 
 import { CHART_STYLE } from "metabase/visualizations/echarts/cartesian/constants/style";
 
-import { getDimensionDisplayValueGetter } from "metabase/visualizations/echarts/cartesian/model/dataset";
 import type { ChartMeasurements } from "metabase/visualizations/echarts/cartesian/option/types";
 
-const NORMALIZED_RANGE = { min: 0, max: 1 };
+import type { XAxisScale } from "metabase-types/api";
 
-const getAxisNameGap = (ticksWidth: number): number => {
-  return ticksWidth + CHART_STYLE.axisNameMargin;
-};
+const NORMALIZED_RANGE = { min: 0, max: 1 };
 
 const getCustomAxisRange = (
   axisExtent: Extent,
@@ -36,23 +30,20 @@ const getCustomAxisRange = (
   return { min: finalMin, max: finalMax };
 };
 
-const getYAxisRange = (
-  axisModel: YAxisModel,
-  settings: ComputedVisualizationSettings,
-) => {
-  const isNormalized = settings["stackable.stack_type"] === "normalized";
-  const isAutoRangeEnabled = settings["graph.y_axis.auto_range"];
+const getYAxisRange = (axisModel: YAxisModel) => {
+  const isNormalized = axisModel.stacking === "normalized";
 
-  if (isAutoRangeEnabled) {
+  if (axisModel.customRange == null) {
     const defaultRange = isNormalized ? NORMALIZED_RANGE : {};
     return [defaultRange, defaultRange];
   }
 
-  const customMin = settings["graph.y_axis.min"];
-  const customMax = settings["graph.y_axis.max"];
-
   return axisModel.extent
-    ? getCustomAxisRange(axisModel.extent, customMin, customMax)
+    ? getCustomAxisRange(
+        axisModel.extent,
+        axisModel.customRange.min,
+        axisModel.customRange.max,
+      )
     : {};
 };
 
@@ -84,8 +75,8 @@ const getTicksDefaultOption = ({ getColor, fontFamily }: RenderingContext) => {
   };
 };
 
-export const getXAxisType = (settings: ComputedVisualizationSettings) => {
-  switch (settings["graph.x_axis.scale"]) {
+export const getXAxisType = (axisScale?: XAxisScale) => {
+  switch (axisScale) {
     case "timeseries":
       return "time";
     case "linear":
@@ -99,46 +90,22 @@ export const getXAxisType = (settings: ComputedVisualizationSettings) => {
   }
 };
 
-const getRotateAngle = (settings: ComputedVisualizationSettings) => {
-  switch (settings["graph.x_axis.axis_enabled"]) {
-    case "rotate-45":
-      return 45;
-    case "rotate-90":
-      return 90;
-    default:
-      return undefined;
-  }
-};
-
 export const buildDimensionAxis = (
-  chartModel: CartesianChartModel,
-  settings: ComputedVisualizationSettings,
-  formatter: AxisFormatter,
-  chartMeasurements: ChartMeasurements,
+  axisModel: XAxisModel,
+  nameGap: number,
   hasTimelineEvents: boolean,
   renderingContext: RenderingContext,
 ): CartesianAxisOption => {
   const { getColor } = renderingContext;
-  const axisType = getXAxisType(settings);
+  const axisType = getXAxisType(axisModel.axisScale);
 
   const boundaryGap =
     axisType === "value" || axisType === "log"
       ? undefined
       : ([0.02, 0.02] as [number, number]);
 
-  const nameGap = getAxisNameGap(
-    chartMeasurements.ticksDimensions.xTicksHeight,
-  );
-  const valueGetter = getDimensionDisplayValueGetter(chartModel, settings);
-
   return {
-    ...getAxisNameDefaultOption(
-      renderingContext,
-      nameGap,
-      settings["graph.x_axis.labels_enabled"]
-        ? settings["graph.x_axis.title_text"]
-        : undefined,
-    ),
+    ...getAxisNameDefaultOption(renderingContext, nameGap, axisModel.label),
     axisTick: {
       show: false,
     },
@@ -151,14 +118,14 @@ export const buildDimensionAxis = (
       margin:
         CHART_STYLE.axisTicksMarginX +
         (hasTimelineEvents ? CHART_STYLE.timelineEvents.height : 0),
-      show: !!settings["graph.x_axis.axis_enabled"],
-      rotate: getRotateAngle(settings),
+      show: axisModel.hasAxisTicksLabels,
+      rotate: axisModel.rotateAngle,
       ...getTicksDefaultOption(renderingContext),
       // Value is always converted to a string by ECharts
-      formatter: (value: string) => ` ${formatter(valueGetter(value))} `, // spaces force padding between ticks
+      formatter: (value: string) => ` ${axisModel.formatter(value)} `, // spaces force padding between ticks
     },
     axisLine: {
-      show: !!settings["graph.x_axis.axis_enabled"],
+      show: axisModel.hasAxisLine,
       lineStyle: {
         color: getColor("text-dark"),
       },
@@ -166,18 +133,16 @@ export const buildDimensionAxis = (
   };
 };
 
-const buildMetricAxis = (
+export const buildMetricAxis = (
   axisModel: YAxisModel,
-  ticksWidth: number,
-  settings: ComputedVisualizationSettings,
+  nameGap: number,
   position: "left" | "right",
   renderingContext: RenderingContext,
 ): CartesianAxisOption => {
   const shouldFlipAxisName = position === "right";
-  const nameGap = getAxisNameGap(ticksWidth);
 
-  const range = getYAxisRange(axisModel, settings);
-  const axisType = settings["graph.y_axis.scale"] === "log" ? "log" : "value";
+  const range = getYAxisRange(axisModel);
+  const axisType = axisModel.axisScale === "log" ? "log" : "value";
 
   return {
     type: axisType,
@@ -203,7 +168,7 @@ const buildMetricAxis = (
     },
     axisLabel: {
       margin: CHART_STYLE.axisTicksMarginY,
-      show: !!settings["graph.y_axis.axis_enabled"],
+      show: axisModel.hasAxisTicksLabels,
       ...getTicksDefaultOption(renderingContext),
       // @ts-expect-error TODO: figure out EChart types
       formatter: value => axisModel.formatter(value),
@@ -213,7 +178,6 @@ const buildMetricAxis = (
 
 const buildMetricsAxes = (
   chartModel: CartesianChartModel,
-  settings: ComputedVisualizationSettings,
   chartMeasurements: ChartMeasurements,
   renderingContext: RenderingContext,
 ): CartesianAxisOption[] => {
@@ -223,8 +187,7 @@ const buildMetricsAxes = (
     axes.push(
       buildMetricAxis(
         chartModel.leftAxisModel,
-        chartMeasurements.ticksDimensions.yTicksWidthLeft,
-        settings,
+        chartMeasurements.ticksDimensions.yAxisNameGapLeft,
         "left",
         renderingContext,
       ),
@@ -235,8 +198,7 @@ const buildMetricsAxes = (
     axes.push(
       buildMetricAxis(
         chartModel.rightAxisModel,
-        chartMeasurements.ticksDimensions.yTicksWidthRight,
-        settings,
+        chartMeasurements.ticksDimensions.yAxisNameGapRight,
         "right",
         renderingContext,
       ),
@@ -248,25 +210,17 @@ const buildMetricsAxes = (
 
 export const buildAxes = (
   chartModel: CartesianChartModel,
-  settings: ComputedVisualizationSettings,
   chartMeasurements: ChartMeasurements,
   hasTimelineEvents: boolean,
   renderingContext: RenderingContext,
 ) => {
   return {
     xAxis: buildDimensionAxis(
-      chartModel,
-      settings,
-      chartModel.xAxisModel.formatter,
+      chartModel.xAxisModel,
       chartMeasurements,
       hasTimelineEvents,
       renderingContext,
     ),
-    yAxis: buildMetricsAxes(
-      chartModel,
-      settings,
-      chartMeasurements,
-      renderingContext,
-    ),
+    yAxis: buildMetricsAxes(chartModel, chartMeasurements, renderingContext),
   };
 };

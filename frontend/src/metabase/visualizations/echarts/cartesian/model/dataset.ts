@@ -4,6 +4,7 @@ import type {
   RawSeries,
   RowValue,
   SingleSeries,
+  XAxisScale,
 } from "metabase-types/api";
 import type {
   CartesianChartModel,
@@ -265,20 +266,20 @@ const sortTimeSeriesDataset = (
 };
 
 export function getDimensionDisplayValueGetter(
-  chartModel: CartesianChartModel,
-  settings: ComputedVisualizationSettings,
+  column: DatasetColumn,
+  xAxisScale?: XAxisScale,
 ) {
-  const axisType = getXAxisType(settings);
-  const isPowerScale = settings["graph.x_axis.scale"] === "pow";
+  const axisType = getXAxisType(xAxisScale);
+  const isPowerScale = xAxisScale === "pow";
 
-  return (value: string) => {
+  return (value: RowValue) => {
     if (isPowerScale) {
       return typeof value === "number" ? Math.pow(value, 2) : value;
     }
     if (axisType === "time") {
       return dayjs(value).format("YYYY-MM-DDTHH:mm:ss");
     }
-    if (isNumeric(chartModel.dimensionModel.column)) {
+    if (isNumeric(column)) {
       return parseInt(value, 10);
     }
     return value;

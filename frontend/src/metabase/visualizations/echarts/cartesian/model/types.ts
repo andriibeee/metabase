@@ -1,6 +1,13 @@
 import type { Insight } from "metabase-types/api/insight";
 
-import type { CardId, DatasetColumn, RowValue } from "metabase-types/api";
+import type {
+  CardId,
+  DatasetColumn,
+  RowValue,
+  StackType,
+  XAxisScale,
+  YAxisScale,
+} from "metabase-types/api";
 
 export type BreakoutValue = RowValue;
 export type ColumnName = string;
@@ -17,10 +24,13 @@ export type LegacySeriesSettingsObjectKey = {
   };
 };
 
-export type RegularSeriesModel = {
+export type BaseSeriesModel = {
   name: string;
   color: string;
   dataKey: DataKey;
+};
+
+export type RegularSeriesModel = BaseSeriesModel & {
   vizSettingsKey: VizSettingsKey;
 
   // TODO: remove when the settings definitions are updated for the dynamic combo chart.
@@ -57,6 +67,10 @@ export type AxisFormatter = (value: RowValue) => string;
 export type XAxisModel = {
   label?: string;
   formatter: AxisFormatter;
+  hasAxisLine?: boolean;
+  hasAxisTicksLabels?: boolean;
+  rotateAngle?: number;
+  axisScale?: XAxisScale;
 };
 
 export type YAxisModel = {
@@ -67,6 +81,13 @@ export type YAxisModel = {
   column: DatasetColumn;
   label?: string;
   formatter: AxisFormatter;
+  stacking?: StackType;
+  customRange?: {
+    min?: number;
+    max?: number;
+  };
+  axisScale?: YAxisScale;
+  hasAxisTicksLabels?: boolean;
 };
 
 export type CartesianChartModel = {

@@ -23,6 +23,7 @@ import type {
 import { isNotNull } from "metabase/lib/types";
 import {
   getDatasetExtents,
+  getDimensionDisplayValueGetter,
   getMetricDisplayValueGetter,
 } from "metabase/visualizations/echarts/cartesian/model/dataset";
 import { getObjectEntries, getObjectKeys } from "metabase/lib/objects";
@@ -396,19 +397,30 @@ function getYAxisModel(
     return null;
   }
 
-  const stackType = settings["stackable.stack_type"];
+  const stacking = settings["stackable.stack_type"];
 
-  const extent = getYAxisExtent(seriesKeys, dataset, stackType);
+  const extent = getYAxisExtent(seriesKeys, dataset, stacking);
   const column = columnByDataKey[seriesKeys[0]];
   const label = getYAxisLabel(seriesKeys, column, settings);
   const formatter = getYAxisFormatter(column, settings, renderingContext);
 
+  const customRange = settings["graph.y_axis.auto_range"]
+    ? {
+        min: settings["graph.y_axis.min"],
+        max: settings["graph.y_axis.max"],
+      }
+    : undefined;
+
   return {
+    stacking,
     seriesKeys,
     extent,
     column,
     label,
     formatter,
+    customRange,
+    axisScale: settings["graph.y_axis.scale"],
+    hasAxisTicksLabels: settings["graph.y_axis.axis_enabled"],
   };
 }
 
@@ -448,6 +460,17 @@ export function getYAxesModels(
   };
 }
 
+const getRotateAngle = (settings: ComputedVisualizationSettings) => {
+  switch (settings["graph.x_axis.axis_enabled"]) {
+    case "rotate-45":
+      return 45;
+    case "rotate-90":
+      return 90;
+    default:
+      return undefined;
+  }
+};
+
 export function getXAxisModel(
   column: DatasetColumn,
   settings: ComputedVisualizationSettings,
@@ -458,16 +481,26 @@ export function getXAxisModel(
     : undefined;
 
   const isHistogram = settings["graph.x_axis.scale"] === "histogram";
+  const axisScale = settings["graph.x_axis.scale"];
+  const displayValueGetter = getDimensionDisplayValueGetter(column, axisScale);
+  const hasAxisLine = !!settings["graph.x_axis.axis_enabled"];
+  const hasAxisTicksLabels = !!settings["graph.x_axis.axis_enabled"];
 
-  const formatter = (value: RowValue) =>
-    renderingContext.formatValue(value, {
+  const formatter = (value: RowValue) => {
+    const restoredValue = displayValueGetter(value);
+    return renderingContext.formatValue(restoredValue, {
       column,
       ...(settings.column?.(column) ?? {}),
       noRange: isHistogram,
     });
+  };
 
   return {
     formatter,
     label,
+    hasAxisLine,
+    hasAxisTicksLabels,
+    rotateAngle: getRotateAngle(settings),
+    axisScale,
   };
 }

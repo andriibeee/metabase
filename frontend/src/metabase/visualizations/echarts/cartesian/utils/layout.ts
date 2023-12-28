@@ -118,13 +118,18 @@ export const getTicksDimensions = (
   const ticksDimensions = {
     yTicksWidthLeft: 0,
     yTicksWidthRight: 0,
-    xTicksHeight: 0,
+    yAxisNameGapLeft: 0,
+    yAxisNameGapRight: 0,
+    xAxisNameGap: 0,
   };
 
   if (chartModel.leftAxisModel) {
     ticksDimensions.yTicksWidthLeft =
       getYAxisTicksWidth(chartModel.leftAxisModel, settings, renderingContext) +
       CHART_STYLE.axisTicksMarginY;
+
+    ticksDimensions.yAxisNameGapLeft =
+      ticksDimensions.yTicksWidthLeft + CHART_STYLE.axisNameMargin;
   }
 
   if (chartModel.rightAxisModel) {
@@ -134,11 +139,14 @@ export const getTicksDimensions = (
         settings,
         renderingContext,
       ) + CHART_STYLE.axisTicksMarginY;
+
+    ticksDimensions.yAxisNameGapRight =
+      ticksDimensions.yTicksWidthRight + CHART_STYLE.axisNameMargin;
   }
 
   const hasBottomAxis = !!settings["graph.x_axis.axis_enabled"];
   if (hasBottomAxis) {
-    ticksDimensions.xTicksHeight =
+    ticksDimensions.xAxisNameGap =
       getXAxisTicksHeight(
         chartModel,
         settings,
@@ -146,6 +154,7 @@ export const getTicksDimensions = (
         renderingContext,
       ) +
       CHART_STYLE.axisTicksMarginX +
+      CHART_STYLE.axisNameMargin +
       (hasTimelineEvents ? CHART_STYLE.timelineEvents.height : 0);
   }
 
